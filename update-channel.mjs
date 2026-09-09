@@ -49,6 +49,9 @@ async function getChannelName() {
   }
 }
 
+const bot = await discord("/users/@me");
+console.log(`Bot identity: ${bot.username} (${bot.id})`);
+
 const desiredName = await getChannelName();
 const channel = await discord(`/channels/${channelId}`);
 
