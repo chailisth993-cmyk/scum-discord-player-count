@@ -93,6 +93,27 @@ function queryScumServer(host, port, timeoutMs = 5000) {
   });
 }
 
+async function queryBattleMetrics() {
+  const url = new URL("https://api.battlemetrics.com/servers");
+  url.searchParams.set("filter[game]", "scum");
+  url.searchParams.set("filter[search]", serverHost);
+
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`BattleMetrics HTTP ${response.status}`);
+
+  const payload = await response.json();
+  const server = payload.data?.find((item) => item.attributes?.ip === serverHost);
+  if (!server) throw new Error("Server not found on BattleMetrics");
+
+  const attributes = server.attributes;
+  if (attributes.status !== "online") throw new Error("BattleMetrics reports offline");
+
+  return {
+    players: Number(attributes.players ?? 0),
+    maxPlayers: Number(attributes.maxPlayers ?? 10),
+  };
+}
+
 async function queryGameMonitoring() {
   const response = await fetch(
     `https://api.gamemonitoring.net/servers/${serverId}`,
@@ -121,6 +142,14 @@ async function getChannelName() {
     return `🟢 Players: ${info.players}/${info.maxPlayers}`;
   } catch (directError) {
     console.warn(`Direct query failed: ${directError.message}`);
+  }
+
+  try {
+    const info = await queryBattleMetrics();
+    console.log(`BattleMetrics fallback: ${info.players}/${info.maxPlayers}`);
+    return `🟢 Players: ${info.players}/${info.maxPlayers}`;
+  } catch (battleMetricsError) {
+    console.warn(`BattleMetrics fallback failed: ${battleMetricsError.message}`);
   }
 
   try {
